@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${default}",
+                "${workspaceFolder}/Code/algo classiques/include"
+            ],
+            "defines": [],
+            "intelliSenseMode": "linux-clang-x64"
+        }
+    ],
+    "version": 4
+}

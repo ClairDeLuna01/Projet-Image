@@ -3,10 +3,20 @@
 
 #include "Filter.hpp"
 #include "GaussianFilter.hpp"
-
-int main()
+int main(int argc, char *argv[])
 {
-    Image img("../../Ressources/In/Tumblr_l_2194398860526597.jpg");
+    // Vérifier si un chemin de fichier est passé en argument
+    if (argc < 2)
+    {
+        std::cerr << "Utilisation : " << argv[0] << " <filepath>" << std::endl;
+        return 1;
+    }
+
+    // Récupérer le chemin de l'image depuis les arguments de la ligne de commande
+    std::string filepath = argv[1];
+
+    // Créer une instance de l'image et la charger
+    Image img(filepath);
 
     if (img.isLoaded())
     {
@@ -20,7 +30,9 @@ int main()
     }
     else
     {
-        std::cerr << "Échec du chargement de l'image." << std::endl;
+        std::cerr << "Erreur : Échec du chargement de l'image depuis le chemin spécifié." << std::endl;
+        return 1; // Retourner une erreur si l'image n'a pas pu être chargée
     }
-    return 0;
+
+    return 0; // Succès
 }

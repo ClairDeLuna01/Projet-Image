@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 from scipy.fftpack import fft2, ifft2, fftshift, ifftshift
 import matplotlib.pyplot as plt
+from tkinter import Tk, filedialog
+import os
 
 def add_gaussian_noise(image, mean=0, std=25):
     noise = np.random.normal(mean, std, image.shape).astype(np.float32)
@@ -32,34 +34,31 @@ def add_speckle_noise(image):
     noisy_image = image + image * noise
     return np.clip(noisy_image, 0, 255).astype(np.uint8)
 
-def add_blue_noise(image):
-    # Transformer l'image dans le domaine fréquentiel pour chaque canal
-    noisy_image = np.zeros_like(image, dtype=np.float32)
-    for channel in range(3):
-        f_transform = fft2(image[:, :, channel])
-        f_shifted = fftshift(f_transform)
+def choose_file_and_folder():
+    # Initialiser Tkinter et masquer la fenêtre principale
+    root = Tk()
+    root.withdraw()
 
-        # Créer un masque pour atténuer les hautes fréquences
-        rows, cols = image.shape[:2]
-        crow, ccol = rows // 2, cols // 2
-        mask = np.zeros((rows, cols), np.float32)
-        for u in range(rows):
-            for v in range(cols):
-                dist = np.sqrt((u - crow)**2 + (v - ccol)**2)
-                mask[u, v] = 1.0 / (1.0 + dist)
+    # Demander à l'utilisateur de sélectionner un fichier d'image
+    image_path = filedialog.askopenfilename(title="Sélectionnez le fichier d'image", filetypes=[("Images", "*.png *.jpg *.jpeg *.bmp")])
+    if not image_path:
+        print("Aucun fichier sélectionné.")
+        return None, None
 
-        # Appliquer le masque et transformer à nouveau dans le domaine spatial
-        f_shifted = f_shifted * mask
-        f_ishifted = ifftshift(f_shifted)
-        noisy_channel = ifft2(f_ishifted).real
-        noisy_image[:, :, channel] = noisy_channel
+    # Demander à l'utilisateur de sélectionner un dossier de sortie
+    output_folder = filedialog.askdirectory(title="Sélectionnez le dossier de sortie")
+    if not output_folder:
+        print("Aucun dossier de sortie sélectionné.")
+        return None, None
 
-    return np.clip(noisy_image, 0, 255).astype(np.uint8)
+    return image_path, output_folder
 
 def save_and_show_images():
-    # Demander le chemin de l'image en entrée
-    image_path = input("Entrez le chemin de l'image : ")
-    
+    # Choisir le fichier d'image et le dossier de sortie
+    image_path, output_folder = choose_file_and_folder()
+    if not image_path or not output_folder:
+        return
+
     # Charger l'image en couleur
     original_image = cv2.imread(image_path)
     if original_image is None:
@@ -71,19 +70,17 @@ def save_and_show_images():
     poisson_image = add_poisson_noise(original_image)
     salt_pepper_image = add_salt_and_pepper_noise(original_image)
     speckle_image = add_speckle_noise(original_image)
-    blue_image = add_blue_noise(original_image)
 
     # Sauvegarder et afficher les images bruitées
     noises = {'Original': original_image, 'Gaussian': gaussian_image, 'Poisson': poisson_image,
-              'Salt_Pepper': salt_pepper_image, 'Speckle': speckle_image, 'Blue': blue_image}
-    
-    # Créer un dossier "output" pour enregistrer les images
-    import os
-    if not os.path.exists("output"):
-        os.makedirs("output")
+              'Salt_Pepper': salt_pepper_image, 'Speckle': speckle_image}
+
+    # Créer un dossier de sortie s'il n'existe pas
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
     for noise_type, img in noises.items():
-        output_path = f"output/{noise_type}_noise.png"
+        output_path = os.path.join(output_folder, f"{noise_type}_noise.png")
         cv2.imwrite(output_path, img)
         print(f"Image avec {noise_type} bruit sauvegardée sous : {output_path}")
         plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))

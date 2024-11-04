@@ -15,24 +15,40 @@ MAINSCPP := $(wildcard *.cpp)
 OBJMAIN := $(MAINSCPP:%.cpp=obj/%.o)
 MAINS := $(MAINSCPP:.cpp=)
 
+DEPDIR := .deps
+DEPFLAGS_BASE = -MT $@ -MMD -MP -MF $(DEPDIR)
+DEPFLAGS = $(DEPFLAGS_BASE)/$*.d
+DEPFLAGSMAIN = $(DEPFLAGS_BASE)/main.d
 
 
 obj/%.o: src/%.cpp
-	g++ -c -g src/$*.cpp -o obj/$*.o -I$(IDIR)
+	g++ $(DEPFLAGS_BASE) $(DEPFLAGS) -c -g src/$*.cpp -o obj/$*.o -I$(IDIR)
 
 obj/%.o: src/%.c
-	g++ -c -g src/$*.c -o obj/$*.o -I$(IDIR)
+	g++ -c $(DEPFLAGS_BASE) $(DEPFLAGS) -g src/$*.c -o obj/$*.o -I$(IDIR)
 
 obj/%.o: ./%.cpp
-	g++ -c -g $*.cpp -o obj/$*.o -I$(IDIR)
+	g++ -c $(DEPFLAGS_BASE) $(DEPFLAGS) -g $*.cpp -o obj/$*.o -I$(IDIR)
 
 $(MAINS): $(OBJMAIN) $(OBJCPP) $(OBJC)
-	g++ -g -o $@ obj/$(basename $@).o $(OBJCPP) $(OBJC) -I$(IDIR)
+	g++ -g $(DEPFLAGS_BASE) $(DEPFLAGSMAIN) -o $@ obj/$(basename $@).o $(OBJCPP) $(OBJC) -I$(IDIR)
+
+$(DEPDIR): ; @mkdir $@
+
+DEPFILES := $(SOURCES:$(SDIR)/%.cpp=$(DEPDIR)/%.d)
+DEPFILES += $(DEPDIR)/main.d
+# $(info $(DEPFILES))
+$(DEPFILES):
+
+
+include $(wildcard $(DEPFILES))
 
 main_rule: $(MAINS)
 
 clean:
 	rm -f obj/*.o $(MAINS)
-	rm -f obj/huffman/*.o
+	rm -f obj/*.d $(DEPDIR)/*.d
+
+	
 
 

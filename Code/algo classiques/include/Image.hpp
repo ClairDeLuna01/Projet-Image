@@ -2,6 +2,7 @@
 
 #include "./extern/stb_image.h"
 #include "./extern/stb_image_write.h"
+
 #include <iostream>
 #include <string>
 
@@ -48,46 +49,10 @@ class Image
     }
 
     // Fonction pour charger une image
-    bool load(const std::string &filepath)
-    {
-        // Libère d'abord les données existantes, si elles existent
-        if (data)
-        {
-            stbi_image_free(data);
-            data = nullptr;
-        }
-        // Charger l'image
-        data = stbi_load(filepath.c_str(), &width, &height, &channels, 0);
-        if (!data)
-        {
-            std::cerr << "Erreur : Impossible de charger l'image " << filepath << std::endl;
-            return false;
-        }
-        std::cout << "Image chargée : " << filepath << " (" << width << "x" << height << ", " << channels << " canaux)"
-                  << std::endl;
-        return true;
-    }
+    bool load(const std::string &filepath);
 
     // Fonction pour sauvegarder une image au format PNG
-    bool savePNG(const std::string &filepath) const
-    {
-        if (!data)
-        {
-            std::cerr << "Erreur : Aucune donnée d'image à sauvegarder." << std::endl;
-            return false;
-        }
-        // Sauvegarde de l'image en PNG
-        if (stbi_write_png(filepath.c_str(), width, height, channels, data, width * channels))
-        {
-            std::cout << "Image sauvegardée en PNG : " << filepath << std::endl;
-            return true;
-        }
-        else
-        {
-            std::cerr << "Erreur : Échec de la sauvegarde de l'image " << filepath << std::endl;
-            return false;
-        }
-    }
+    bool savePNG(const std::string &filepath) const;
 
     // Fonction pour obtenir la largeur de l'image
     int getWidth() const

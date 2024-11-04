@@ -4,5 +4,5 @@
 class Filter
 {
   public:
-    virtual void apply(Image &img) = 0;
+    virtual Image apply(const Image &img) = 0;
 };

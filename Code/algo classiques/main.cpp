@@ -1,8 +1,10 @@
 #include "Image.hpp" // fichier de définition de la classe Image
 #include <iostream>
 
+#include "BilinearFilter.hpp"
 #include "Filter.hpp"
 #include "GaussianFilter.hpp"
+
 int main(int argc, char *argv[])
 {
     // Vérifier si un chemin de fichier est passé en argument
@@ -22,11 +24,11 @@ int main(int argc, char *argv[])
     {
         img.printInfo(); // Affiche les informations de l'image
 
-        Filter *filter = new GaussianFilter(1.0f); // Crée un filtre gaussien
+        Filter *filter = new BilinearFilter(); // Crée un filtre
 
         Image out = filter->apply(img); // Applique le filtre sur l'image
 
-        out.savePNG("../../Ressources/Out/GaussianFilter.png"); // Sauvegarde l'image filtrée
+        out.savePNG("../../Ressources/Out/BilinearFilter.png"); // Sauvegarde l'image filtrée
     }
     else
     {

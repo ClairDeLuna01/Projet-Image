@@ -1,19 +1,15 @@
-#include "Image.hpp" // fichier de définition de la classe Image
 #include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 
+#include "Image.hpp"
 #include "BilinearFilter.hpp"
 #include "Filter.hpp"
 #include "GaussianFilter.hpp"
 #include "utils.hpp"
-
-enum class FilterType
-{
-    BILINEAR,
-    GAUSSIAN
-};
+#include "Noiser.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -26,21 +22,19 @@ int main(int argc, char *argv[])
 
     // Récupérer le chemin de l'image depuis les arguments de la ligne de commande
     std::string filepath = argv[1];
-    std::string filter = argv[2];
-    std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
+    std::string filterName = argv[2];
+    std::transform(filterName.begin(), filterName.end(), filterName.begin(), ::tolower);
     std::string sigmaStr = argv[3];
     float sigma = std::stof(sigmaStr);
 
-    // Récupérer tout les images dans le dossier
-    std::vector<std::string> files = utils::getFilesInDirectory("../../Ressources/In/" + filepath);
-
+    // Compute le type de filtre selon le nom du filtre passé en paramètre
     FilterType filterType;
-    if (filter == "bilinear")
+    if (filterName == "bilinear")
     {
         filterType = FilterType::BILINEAR;
         std::cout << "Filtre bilinéaire" << std::endl;
     }
-    else if (filter == "gaussian")
+    else if (filterName == "gaussian")
     {
         filterType = FilterType::GAUSSIAN;
         std::cout << "Filtre gaussien" << std::endl;
@@ -51,84 +45,59 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::string originalFile;
-    for (const std::string &file : files)
-    {
-        if (file.find("Original") != std::string::npos)
-        {
-            originalFile = file;
-            break;
-        }
-    }
-
-    if (originalFile.empty())
-    {
-        std::cerr << "Erreur : Aucune image originale trouvée." << std::endl;
+    // Charge l'image originale
+    Image original(filepath);
+    if (!original.isLoaded()) {
+        std::cerr << "Erreur : Échec du chargement de l'image originale." << std::endl;
         return 1;
     }
+    std::string originalBaseName = utils::basenameWithoutExt(filepath);
 
-    Image original("../../Ressources/In/" + filepath + "/" + originalFile);
+    // Création du filtre selon le type entre en paramètre
+    Filter *filter;
 
-    for (const std::string &file : files)
+    switch (filterType)
     {
-        // if (file.find("Original") != std::string::npos)
-        // {
-        //     continue;
-        // }
+    case FilterType::BILINEAR:
+        filter = new BilinearFilter();
+        break;
+    case FilterType::GAUSSIAN:
+        filter = new GaussianFilter(sigma);
+        break;
+    }
 
-        std::string path = "../../Ressources/In/" + filepath + "/" + file;
+    // Map associant chaque type de bruit à sa fonction d'application
+    std::map<NoiseType, std::function<void(Image&)>> noiseFunctions = {
+        { NoiseType::GAUSSIAN,    [](Image& img) { Noiser::applyGaussianNoise(img, 25.0); } },
+        { NoiseType::POISSON,     [](Image& img) { Noiser::applyPoissonNoise(img); } },
+        { NoiseType::SALT_PEPPER, [](Image& img) { Noiser::applySaltAndPepperNoise(img, 0.05); } },
+        { NoiseType::SPECKLE,     [](Image& img) { Noiser::applySpeckleNoise(img, 0.1); } }
+    };
 
-        std::string outFolder;
-        switch (filterType)
-        {
-        case FilterType::BILINEAR:
-            outFolder = filepath + "_bilinear";
-            break;
-        case FilterType::GAUSSIAN:
-            outFolder = filepath + "_gaussian";
-            break;
-        }
-        std::string path_out = "../../Ressources/Out/" + outFolder + "/" + utils::basename(file) + "_out.png";
+    for (const auto& [noiseType, applyNoise] : noiseFunctions) {
+        Image noisyImage = original;  // Copie de l'image d'origine
+        applyNoise(noisyImage);       // Applique le bruit correspondant
 
-        // Créer une instance de l'image et la charger
-        Image img(path);
+        // Sauvegarde de l'image bruitée avec le nom du bruit
+        std::string noiseName = utils::noiseTypeToString(noiseType);
+        noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_noise.png");
 
-        if (img.isLoaded())
-        {
-            // img.printInfo(); // Affiche les informations de l'image
+        if (noisyImage.isLoaded()) {
+            Image out = filter->apply(noisyImage); // Applique le filtre
+            float psnrNoisy = utils::PSNR(noisyImage, original);       // PSNR de l'image bruitée
+            float psnrFiltered = utils::PSNR(out, original);    // PSNR de l'image filtrée
+            float psnrDiff = psnrFiltered - psnrNoisy;
 
-            Filter *filter;
+            std::cout << "Image bruitée par " << noiseName << ":\n";
+            std::cout << "PSNR (bruitée): " << psnrNoisy << " dB\n";
+            std::cout << "PSNR (filtrée): " << psnrFiltered << " dB\n";
+            std::cout << "Différence de PSNR : " << psnrDiff << " dB\n\n";
 
-            switch (filterType)
-            {
-            case FilterType::BILINEAR:
-                filter = new BilinearFilter();
-                break;
-            case FilterType::GAUSSIAN:
-                filter = new GaussianFilter(sigma);
-                break;
-            }
-
-            Image out = filter->apply(img); // Applique le filtre sur l'image
-
-            float psnr = utils::PSNR(img, original); // Calcule le PSNR entre l'image filtrée et l'image originale
-            float psnrFilter = utils::PSNR(out, original); // Calcule le PSNR entre l'image filtrée et l'image originale
-            float psnrDiff = psnrFilter - psnr;
-
-            std::cout << "Image : " << file << std::endl;
-
-            std::cout << "PSNR (bruitée): " << psnr << " dB" << std::endl;
-            std::cout << "PSNR (filtre) : " << psnrFilter << " dB" << std::endl;
-            std::cout << "Différence de PSNR : " << psnrDiff << " dB" << std::endl << std::endl;
-
-            out.savePNG(path_out); // Sauvegarde l'image filtrée
-        }
-        else
-        {
-            std::cerr << "Erreur : Échec du chargement de l'image depuis le chemin spécifié." << std::endl;
-            return 1; // Retourner une erreur si l'image n'a pas pu être chargée
+            out.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_denoisedBy" + filterName + ".png");
         }
     }
+
+    delete filter; // Libération de la mémoire du filtre
 
     return 0; // Succès
 }

@@ -9,6 +9,19 @@
 #include <sys/stat.h>
 #include <vector>
 
+enum class FilterType
+{
+    BILINEAR,
+    GAUSSIAN
+};
+
+enum class NoiseType {
+    GAUSSIAN,
+    POISSON,
+    SALT_PEPPER,
+    SPECKLE
+};
+
 namespace utils
 {
 inline float MSE(const Image &img1, const Image &img2)
@@ -82,6 +95,21 @@ inline std::string basename(const std::string &path)
     return path.substr(lastSlash + 1);
 }
 
+inline std::string basenameWithoutExt(const std::string &path)
+{
+    // Trouver la position du dernier '/' pour isoler le nom de fichier
+    size_t lastSlash = path.find_last_of('/');
+    std::string filename = (lastSlash == std::string::npos) ? path : path.substr(lastSlash + 1);
+
+    // Trouver la position du dernier '.' pour retirer l'extension
+    size_t lastDot = filename.find_last_of('.');
+    if (lastDot == std::string::npos) {
+        return filename; // Pas d'extension trouvée
+    }
+    
+    return filename.substr(0, lastDot); // Retourne le nom sans extension
+}
+
 inline std::string dirname(const std::string &path)
 {
     size_t lastSlash = path.find_last_of('/');
@@ -90,6 +118,16 @@ inline std::string dirname(const std::string &path)
         return "";
     }
     return path.substr(0, lastSlash);
+}
+
+inline std::string noiseTypeToString(NoiseType noiseType) {
+    switch (noiseType) {
+        case NoiseType::GAUSSIAN:    return "gaussian";
+        case NoiseType::POISSON:     return "poisson";
+        case NoiseType::SALT_PEPPER: return "salt_pepper";
+        case NoiseType::SPECKLE:     return "speckle";
+        default:                     return "unknown"; // Cas par défaut pour les valeurs non prises en charge
+    }
 }
 
 inline bool fileExists(const std::string &path)

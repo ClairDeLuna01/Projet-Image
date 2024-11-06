@@ -18,9 +18,9 @@ enum class FilterType
 int main(int argc, char *argv[])
 {
     // Vérifier si un chemin de fichier est passé en argument
-    if (argc < 3)
+    if (argc < 4)
     {
-        std::cerr << "Utilisation : " << argv[0] << " <filepath> <filter>" << std::endl;
+        std::cerr << "Utilisation : " << argv[0] << " <filepath> <filter> <sigma>" << std::endl;
         return 1;
     }
 
@@ -28,6 +28,8 @@ int main(int argc, char *argv[])
     std::string filepath = argv[1];
     std::string filter = argv[2];
     std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
+    std::string sigmaStr = argv[3];
+    float sigma = std::stof(sigmaStr);
 
     // Récupérer tout les images dans le dossier
     std::vector<std::string> files = utils::getFilesInDirectory("../../Ressources/In/" + filepath);
@@ -103,7 +105,7 @@ int main(int argc, char *argv[])
                 filter = new BilinearFilter();
                 break;
             case FilterType::GAUSSIAN:
-                filter = new GaussianFilter(1.0f);
+                filter = new GaussianFilter(sigma);
                 break;
             }
 
@@ -111,7 +113,7 @@ int main(int argc, char *argv[])
 
             float psnr = utils::PSNR(img, original); // Calcule le PSNR entre l'image filtrée et l'image originale
             float psnrFilter = utils::PSNR(out, original); // Calcule le PSNR entre l'image filtrée et l'image originale
-            float psnrDiff = abs(psnr - psnrFilter);
+            float psnrDiff = psnrFilter - psnr;
 
             std::cout << "Image : " << file << std::endl;
 

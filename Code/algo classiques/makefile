@@ -1,3 +1,7 @@
+# Flags de compilation
+CFLAGS = -Wall -std=c++23 -O3 -g -Wno-catch-value -Wno-switch
+
+
 # Dossier d'includes
 IDIR = include
 
@@ -33,17 +37,17 @@ default: main_rule
 
 # Règles de compilation
 obj/%.o: src/%.cpp
-	g++ $(DEPFLAGS_BASE) -c -g src/$*.cpp -o obj/$*.o -I$(IDIR)
+	g++ $(DEPFLAGS_BASE) -c $(CFLAGS) src/$*.cpp -o obj/$*.o -I$(IDIR)
 
 obj/%.o: src/%.c
-	g++ -c $(DEPFLAGS_BASE) -g src/$*.c -o obj/$*.o -I$(IDIR)
+	g++ -c $(DEPFLAGS_BASE) $(CFLAGS) src/$*.c -o obj/$*.o -I$(IDIR)
 
 obj/%.o: ./%.cpp
-	g++ -c $(DEPFLAGS_BASE) -g $*.cpp -o obj/$*.o -I$(IDIR)
+	g++ -c $(DEPFLAGS_BASE) $(CFLAGS) $*.cpp -o obj/$*.o -I$(IDIR)
 
 # Lien final pour l'exécutable principal
 $(MAINS): $(OBJMAIN) $(OBJCPP) $(OBJC)
-	g++ -g $(OBJMAIN) $(OBJCPP) $(OBJC) -o $@ -I$(IDIR)
+	g++ $(CFLAGS) $(OBJMAIN) $(OBJCPP) $(OBJC) -o $@ -I$(IDIR)
 
 # Inclusion des fichiers de dépendances
 -include $(DEPFILES)

@@ -3,8 +3,57 @@
 #include "./extern/stb_image.h"
 #include "./extern/stb_image_write.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <string>
+
+struct ConvolutionKernel
+{
+    int size;
+    float *data;
+
+    ConvolutionKernel(int size, float *data) : size(size), data(data)
+    {
+    }
+
+    ConvolutionKernel(int size) : size(size)
+    {
+        data = new float[size * size];
+    }
+
+    ConvolutionKernel() : size(0), data(nullptr)
+    {
+    }
+
+    ConvolutionKernel(const ConvolutionKernel &other) : size(other.size)
+    {
+        data = new float[size * size];
+        std::copy(other.data, other.data + size * size, data);
+    }
+
+    ~ConvolutionKernel()
+    {
+        if (data)
+        {
+            delete[] data;
+        }
+    }
+
+    float &operator()(int x, int y)
+    {
+        return data[y * size + x];
+    }
+
+    float operator()(int x, int y) const
+    {
+        return data[y * size + x];
+    }
+
+    float *operator[](int y)
+    {
+        return data + y * size;
+    }
+};
 
 class Image
 {
@@ -29,13 +78,14 @@ class Image
     // Constructeur pour créer une image vide
     Image(int width, int height, int channels = 3) : width(width), height(height), channels(channels)
     {
-        data = new unsigned char[width * height * channels]();
+        // utilisation de malloc car les données de l'image sont utilisées par stb_image
+        data = (unsigned char *)malloc(width * height * channels);
     }
 
     // Constructeur de copie
     Image(const Image &other) : width(other.width), height(other.height), channels(other.channels)
     {
-        data = new unsigned char[width * height * channels];
+        data = (unsigned char *)malloc(width * height * channels);
         std::copy(other.data, other.data + width * height * channels, data);
     }
 
@@ -104,4 +154,6 @@ class Image
             std::cout << "Aucune image chargée" << std::endl;
         }
     }
+
+    Image ApplyConvolution(const ConvolutionKernel &kernel) const;
 };

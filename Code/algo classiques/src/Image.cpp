@@ -47,3 +47,41 @@ bool Image::savePNG(const std::string &filepath) const
         return false;
     }
 }
+
+Image Image::ApplyConvolution(const ConvolutionKernel &kernel) const
+{
+    // On crée une image temporaire pour stocker le résultat
+    Image out(width, height);
+
+    // On applique le filtre sur chaque pixel
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int c = 0; c < channels; c++)
+            {
+                float sum = 0;
+                float weightSum = 0;
+
+                // On parcourt les pixels du voisinage
+                for (int j = -kernel.size / 2; j <= kernel.size / 2; j++)
+                {
+                    for (int i = -kernel.size / 2; i <= kernel.size / 2; i++)
+                    {
+                        // On calcule le poids du pixel
+                        float weight = kernel(i + kernel.size / 2, j + kernel.size / 2);
+                        weightSum += weight;
+
+                        // On ajoute le poids multiplié par la valeur du pixel
+                        sum += getClampedPixel(x + i, y + j, c) * weight;
+                    }
+                }
+
+                // On normalise le résultat
+                out.setPixel(x, y, c, utils::clamp(sum / weightSum, 0.0f, 255.0f));
+            }
+        }
+    }
+
+    return out;
+}

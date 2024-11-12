@@ -27,6 +27,12 @@ int main(int argc, char *argv[])
                                       1.0f);
     args::ValueFlag<float> sigma2Param(parser, "sigma2", "Valeur de sigma2 pour le filtre bilatéral", {'t', "sigma2"},
                                        1.0f);
+    args::ValueFlag<float> sigmaGaussianParam(parser, "sigmaGaussian", "Valeur de sigmaGaussian", {"sigmaGaussian"},
+                                       25.0f);
+    args::ValueFlag<float> sigmaSpeckleParam(parser, "sigmaSpeckle", "Valeur de sigmaSpeckle", {"sigmaSpeckle"},
+                                       0.1f);
+    args::ValueFlag<float> sigmaSaltAndPepperParam(parser, "sigmaSaltAndPepper", "Valeur de sigmaSaltAndPepper", {"sigmaSaltAndPepper"},
+                                       0.05f);
     args::ValueFlag<int> kernelSizeParam(parser, "kernelSize", "Taille du noyau pour le filtre bilatéral",
                                          {'k', "kernelSize"}, 3);
     args::ValueFlag<int> iterNbrParam(parser, "iterNbr", "Nombre d'itération de filtrage", {'i', "iterNbr", "iterationNbr"},
@@ -76,6 +82,9 @@ int main(int argc, char *argv[])
     // Récupère les paramètres spécifiques à chaque filtre
     float sigma = sigmaParam.Get();
     float sigma2 = sigma2Param.Get();
+    float sigmaGaussian = sigmaGaussianParam.Get();
+    float sigmaSpeckle = sigmaSpeckleParam.Get();
+    float sigmaSaltAndPepper = sigmaSaltAndPepperParam.Get();
     int kernelSize = kernelSizeParam.Get();
     int iterNbr = iterNbrParam.Get();
 
@@ -107,10 +116,10 @@ int main(int argc, char *argv[])
 
     // Map associant chaque type de bruit à sa fonction d'application
     std::map<NoiseType, std::function<void(Image &)>> noiseFunctions = {
-        {NoiseType::GAUSSIAN, [](Image &img) { Noiser::applyGaussianNoise(img, 25.0); }},
+        {NoiseType::GAUSSIAN, [sigmaGaussian](Image &img) { Noiser::applyGaussianNoise(img, sigmaGaussian); }},
         {NoiseType::POISSON, [](Image &img) { Noiser::applyPoissonNoise(img); }},
-        {NoiseType::SALT_PEPPER, [](Image &img) { Noiser::applySaltAndPepperNoise(img, 0.05); }},
-        {NoiseType::SPECKLE, [](Image &img) { Noiser::applySpeckleNoise(img, 0.1); }}};
+        {NoiseType::SALT_PEPPER, [sigmaSaltAndPepper](Image &img) { Noiser::applySaltAndPepperNoise(img, sigmaSaltAndPepper); }},
+        {NoiseType::SPECKLE, [sigmaSpeckle](Image &img) { Noiser::applySpeckleNoise(img, sigmaSpeckle); }}};
 
     for (const auto &[noiseType, applyNoise] : noiseFunctions)
     {

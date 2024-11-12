@@ -152,6 +152,9 @@ int main(int argc, char *argv[])
             std::cout << "SSIM (filtrée): " << ssimFiltered << "\n";
             std::cout << "Différence de SSIM : " << ssimDiff << "\n";
 
+            // if (noiseType == NoiseType::GAUSSIAN)
+            //     std::cout << sigma << " " << psnrDiff << " dB\n";
+
             out.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_denoisedBy" + filterName +
                         ".png");
         }

@@ -98,6 +98,26 @@ class Image
         }
     }
 
+    // Opérateur d'affectation
+    Image& operator=(const Image &other) {
+        if (this != &other) { // Vérification d'auto-affectation
+            // Libérer la mémoire existante
+            if (data) {
+                free(data);
+            }
+
+            // Copier les attributs de base
+            width = other.width;
+            height = other.height;
+            channels = other.channels;
+
+            // Allouer de la mémoire et copier les données
+            data = (unsigned char *)malloc(width * height * channels);
+            std::copy(other.data, other.data + width * height * channels, data);
+        }
+        return *this;
+    }
+
     // Fonction pour charger une image
     bool load(const std::string &filepath);
 

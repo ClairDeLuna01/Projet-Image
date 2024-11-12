@@ -29,7 +29,8 @@ int main(int argc, char *argv[])
                                        1.0f);
     args::ValueFlag<int> kernelSizeParam(parser, "kernelSize", "Taille du noyau pour le filtre bilatéral",
                                          {'k', "kernelSize"}, 3);
-
+    args::ValueFlag<int> iterNbrParam(parser, "iterNbr", "Nombre d'itération de filtrage", {'i', "iterNbr", "iterationNbr"},
+                                      1);
     args::HelpFlag help(parser, "help", "Affiche ce message d'aide", {'h', "help"});
     args::CompletionFlag completion(parser, {"complete"});
 
@@ -76,6 +77,7 @@ int main(int argc, char *argv[])
     float sigma = sigmaParam.Get();
     float sigma2 = sigma2Param.Get();
     int kernelSize = kernelSizeParam.Get();
+    int iterNbr = iterNbrParam.Get();
 
     // Charge l'image originale
     Image original(filepath);
@@ -114,14 +116,16 @@ int main(int argc, char *argv[])
     {
         Image noisyImage = original; // Copie de l'image d'origine
         applyNoise(noisyImage);      // Applique le bruit correspondant
-
         // Sauvegarde de l'image bruitée avec le nom du bruit
         std::string noiseName = utils::noiseTypeToString(noiseType);
         noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_noise.png");
 
         if (noisyImage.isLoaded())
         {
-            Image out = filter->apply(noisyImage);               // Applique le filtre
+            Image out = noisyImage;
+            for (int i = 0; i < iterNbr; i++) {
+                out = filter->apply(out);               // Applique le filtre
+            }
             float psnrNoisy = utils::PSNR(noisyImage, original); // PSNR de l'image bruitée
             float psnrFiltered = utils::PSNR(out, original);     // PSNR de l'image filtrée
             float psnrDiff = psnrFiltered - psnrNoisy;

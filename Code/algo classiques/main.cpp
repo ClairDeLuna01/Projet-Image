@@ -139,13 +139,13 @@ int main(int argc, char *argv[])
         applyNoise(noisyImage);      // Applique le bruit correspondant
         // Sauvegarde de l'image bruitée avec le nom du bruit
         std::string noiseName = utils::noiseTypeToString(noiseType);
-        noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_noise.png");
-        // float noiseSigma = (noiseType == NoiseType::GAUSSIAN) ? sigmaGaussian :
-        //                     (noiseType == NoiseType::SALT_PEPPER) ? sigmaSaltAndPepper :
-        //                     sigmaSpeckle;
-        // if ((noiseType != NoiseType::POISSON))
-        //     noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_" +
-        //     std::to_string(noiseSigma) + ".png");
+        // noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_noise.png");
+        float noiseSigma = (noiseType == NoiseType::GAUSSIAN)      ? sigmaGaussian
+                           : (noiseType == NoiseType::SALT_PEPPER) ? sigmaSaltAndPepper
+                                                                   : sigmaSpeckle;
+        if ((noiseType != NoiseType::POISSON))
+            noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_" +
+                               std::to_string(noiseSigma) + ".png");
         if (noisyImage.isLoaded())
         {
             Image out = noisyImage;

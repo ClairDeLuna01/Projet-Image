@@ -32,3 +32,5 @@
 *.app
 
 main
+
+Ressources/Out/*.png

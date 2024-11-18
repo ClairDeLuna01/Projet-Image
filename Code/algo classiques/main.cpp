@@ -9,7 +9,9 @@
 #include "Filter.hpp"
 #include "GaussianFilter.hpp"
 #include "Image.hpp"
+#include "MedianFilter.hpp"
 #include "Noiser.hpp"
+#include "NonlocalMeansFilter.hpp"
 #include "utils.hpp"
 
 int main(int argc, char *argv[])
@@ -20,23 +22,26 @@ int main(int argc, char *argv[])
     // Ajout des arguments
     args::Positional<std::string> filepathParam(parser, "filepath", "Chemin de l'image à traiter");
     args::MapPositional<std::string, FilterType> filterNameParam(
-        parser, "filter", "Nom du filtre à appliquer (bilateral, gaussian)",
-        {{"bilateral", FilterType::BILATERAL}, {"gaussian", FilterType::GAUSSIAN}}, FilterType::INVALID);
+        parser, "filter", "Nom du filtre à appliquer (bilateral, gaussian, nonlocal_means)",
+        {{"bilateral", FilterType::BILATERAL},
+         {"gaussian", FilterType::GAUSSIAN},
+         {"nonlocal_means", FilterType::NONLOCAL_MEANS},
+         {"median", FilterType::MEDIAN}},
+        FilterType::INVALID);
 
     args::ValueFlag<float> sigmaParam(parser, "sigma1", "Valeur de sigma pour le filtre", {'s', "sigma1", "sigma"},
                                       1.0f);
     args::ValueFlag<float> sigma2Param(parser, "sigma2", "Valeur de sigma2 pour le filtre bilatéral", {'t', "sigma2"},
                                        1.0f);
     args::ValueFlag<float> sigmaGaussianParam(parser, "sigmaGaussian", "Valeur de sigmaGaussian", {"sigmaGaussian"},
-                                       25.0f);
-    args::ValueFlag<float> sigmaSpeckleParam(parser, "sigmaSpeckle", "Valeur de sigmaSpeckle", {"sigmaSpeckle"},
-                                       0.1f);
-    args::ValueFlag<float> sigmaSaltAndPepperParam(parser, "sigmaSaltAndPepper", "Valeur de sigmaSaltAndPepper", {"sigmaSaltAndPepper"},
-                                       0.05f);
+                                              25.0f);
+    args::ValueFlag<float> sigmaSpeckleParam(parser, "sigmaSpeckle", "Valeur de sigmaSpeckle", {"sigmaSpeckle"}, 0.1f);
+    args::ValueFlag<float> sigmaSaltAndPepperParam(parser, "sigmaSaltAndPepper", "Valeur de sigmaSaltAndPepper",
+                                                   {"sigmaSaltAndPepper"}, 0.05f);
     args::ValueFlag<int> kernelSizeParam(parser, "kernelSize", "Taille du noyau pour le filtre bilatéral",
                                          {'k', "kernelSize"}, 3);
-    args::ValueFlag<int> iterNbrParam(parser, "iterNbr", "Nombre d'itération de filtrage", {'i', "iterNbr", "iterationNbr"},
-                                      1);
+    args::ValueFlag<int> iterNbrParam(parser, "iterNbr", "Nombre d'itération de filtrage",
+                                      {'i', "iterNbr", "iterationNbr"}, 1);
     args::HelpFlag help(parser, "help", "Affiche ce message d'aide", {'h', "help"});
     args::CompletionFlag completion(parser, {"complete"});
 
@@ -109,6 +114,12 @@ int main(int argc, char *argv[])
     case FilterType::GAUSSIAN:
         filter = new GaussianFilter(sigma);
         break;
+    case FilterType::NONLOCAL_MEANS:
+        filter = new NonlocalMeansFilter(sigma, kernelSize);
+        break;
+    case FilterType::MEDIAN:
+        filter = new MedianFilter(kernelSize);
+        break;
     default:
         std::cerr << "Erreur : Filtre non reconnu." << std::endl;
         return 1;
@@ -118,7 +129,8 @@ int main(int argc, char *argv[])
     std::map<NoiseType, std::function<void(Image &)>> noiseFunctions = {
         {NoiseType::GAUSSIAN, [sigmaGaussian](Image &img) { Noiser::applyGaussianNoise(img, sigmaGaussian); }},
         {NoiseType::POISSON, [](Image &img) { Noiser::applyPoissonNoise(img); }},
-        {NoiseType::SALT_PEPPER, [sigmaSaltAndPepper](Image &img) { Noiser::applySaltAndPepperNoise(img, sigmaSaltAndPepper); }},
+        {NoiseType::SALT_PEPPER,
+         [sigmaSaltAndPepper](Image &img) { Noiser::applySaltAndPepperNoise(img, sigmaSaltAndPepper); }},
         {NoiseType::SPECKLE, [sigmaSpeckle](Image &img) { Noiser::applySpeckleNoise(img, sigmaSpeckle); }}};
 
     for (const auto &[noiseType, applyNoise] : noiseFunctions)
@@ -132,12 +144,14 @@ int main(int argc, char *argv[])
         //                     (noiseType == NoiseType::SALT_PEPPER) ? sigmaSaltAndPepper :
         //                     sigmaSpeckle;
         // if ((noiseType != NoiseType::POISSON))
-        //     noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_" +  std::to_string(noiseSigma) + ".png");
+        //     noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_" +
+        //     std::to_string(noiseSigma) + ".png");
         if (noisyImage.isLoaded())
         {
             Image out = noisyImage;
-            for (int i = 0; i < iterNbr; i++) {
-                out = filter->apply(out);               // Applique le filtre
+            for (int i = 0; i < iterNbr; i++)
+            {
+                out = filter->apply(out); // Applique le filtre
             }
             float psnrNoisy = utils::PSNR(noisyImage, original); // PSNR de l'image bruitée
             float psnrFiltered = utils::PSNR(out, original);     // PSNR de l'image filtrée

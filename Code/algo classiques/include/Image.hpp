@@ -99,10 +99,13 @@ class Image
     }
 
     // Opérateur d'affectation
-    Image& operator=(const Image &other) {
-        if (this != &other) { // Vérification d'auto-affectation
+    Image &operator=(const Image &other)
+    {
+        if (this != &other)
+        { // Vérification d'auto-affectation
             // Libérer la mémoire existante
-            if (data) {
+            if (data)
+            {
                 free(data);
             }
 
@@ -176,4 +179,16 @@ class Image
     }
 
     Image ApplyConvolution(const ConvolutionKernel &kernel) const;
+
+    // Surcharge de l'opérateur () pour accéder à un pixel
+    unsigned char operator()(int x, int y, int c = 0) const
+    {
+        return data[(y * width + x) * channels + c];
+    }
+
+    // Surcharge de l'opérateur () pour modifier un pixel
+    unsigned char &operator()(int x, int y, int c = 0)
+    {
+        return data[(y * width + x) * channels + c];
+    }
 };

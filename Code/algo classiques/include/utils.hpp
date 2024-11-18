@@ -13,6 +13,8 @@ enum class FilterType
 {
     BILATERAL,
     GAUSSIAN,
+    NONLOCAL_MEANS,
+    MEDIAN,
     INVALID
 };
 
@@ -216,6 +218,10 @@ inline std::string filterTypeToString(FilterType filterType)
         return "bilateral";
     case FilterType::GAUSSIAN:
         return "gaussian";
+    case FilterType::NONLOCAL_MEANS:
+        return "nonlocal_means";
+    case FilterType::MEDIAN:
+        return "median";
     default:
         return "unknown"; // Cas par défaut pour les valeurs non prises en charge
     }

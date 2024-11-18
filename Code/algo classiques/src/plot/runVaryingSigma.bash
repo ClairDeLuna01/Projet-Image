@@ -58,14 +58,26 @@ sigma_tonal="-t 120"
 #     sigma_spatial=$(echo "$sigma_spatial + 0.02" | bc)
 # done
 
-sigma_gaussian="1"
-sigma_speckle="0.02"
-sigma_salt_and_pepper="0.001"
+# sigma_gaussian="1"
+# sigma_speckle="0.02"
+# sigma_salt_and_pepper="0.001"
+
+# while (( $(echo "$sigma_gaussian <= 100" | bc -l) )); do
+#     ./main "$input_file" "$filter_type" "$sigma_spatial" "$sigma_tonal" --sigmaGaussian "$sigma_gaussian" --sigmaSaltAndPepper "$sigma_salt_and_pepper" --sigmaSpeckle "$sigma_speckle"
+    
+#     sigma_gaussian=$(echo "$sigma_gaussian + 1" | bc)
+#     sigma_salt_and_pepper=$(echo "$sigma_salt_and_pepper + 0.001" | bc)
+#     sigma_speckle=$(echo "$sigma_speckle + 0.02" | bc)
+# done
+
+sigma_gaussian="10"
+sigma_speckle="0.2"
+sigma_salt_and_pepper="0.01"
 
 while (( $(echo "$sigma_gaussian <= 100" | bc -l) )); do
     ./main "$input_file" "$filter_type" "$sigma_spatial" "$sigma_tonal" --sigmaGaussian "$sigma_gaussian" --sigmaSaltAndPepper "$sigma_salt_and_pepper" --sigmaSpeckle "$sigma_speckle"
     
-    sigma_gaussian=$(echo "$sigma_gaussian + 1" | bc)
-    sigma_salt_and_pepper=$(echo "$sigma_salt_and_pepper + 0.001" | bc)
-    sigma_speckle=$(echo "$sigma_speckle + 0.02" | bc)
+    sigma_gaussian=$(echo "$sigma_gaussian + 10" | bc)
+    sigma_salt_and_pepper=$(echo "$sigma_salt_and_pepper + 0.01" | bc)
+    sigma_speckle=$(echo "$sigma_speckle + 0.2" | bc)
 done

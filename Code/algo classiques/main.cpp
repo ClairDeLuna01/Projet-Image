@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "BilateralFilter.hpp"
+#include "FFDNetPretrained.hpp"
 #include "Filter.hpp"
 #include "GaussianFilter.hpp"
 #include "Image.hpp"
@@ -26,8 +27,12 @@ int main(int argc, char *argv[])
         {{"bilateral", FilterType::BILATERAL},
          {"gaussian", FilterType::GAUSSIAN},
          {"nonlocal_means", FilterType::NONLOCAL_MEANS},
-         {"median", FilterType::MEDIAN}},
+         {"median", FilterType::MEDIAN},
+         {"ffdnet_pretrained", FilterType::FFDNET_PRETRAINED}},
         FilterType::INVALID);
+    args::Flag noAddNoiseParam(parser, "noAddNoise", "Ne pas ajouter de bruit à l'image", {'n', "noAddNoise"});
+    args::ValueFlag<std::string> originalPathParam(parser, "originalPath", "Chemin de l'image originale",
+                                                   {'o', "originalPath"}, "");
 
     args::ValueFlag<float> sigmaParam(parser, "sigma1", "Valeur de sigma pour le filtre", {'s', "sigma1", "sigma"},
                                       1.0f);
@@ -93,15 +98,6 @@ int main(int argc, char *argv[])
     int kernelSize = kernelSizeParam.Get();
     int iterNbr = iterNbrParam.Get();
 
-    // Charge l'image originale
-    Image original(filepath);
-    if (!original.isLoaded())
-    {
-        std::cerr << "Erreur : Échec du chargement de l'image originale." << std::endl;
-        return 1;
-    }
-    std::string originalBaseName = utils::basenameWithoutExt(filepath);
-
     // Création du filtre selon le type entre en paramètre
     Filter *filter;
     std::string filterName = utils::filterTypeToString(filterType);
@@ -120,6 +116,9 @@ int main(int argc, char *argv[])
     case FilterType::MEDIAN:
         filter = new MedianFilter(kernelSize);
         break;
+    case FilterType::FFDNET_PRETRAINED:
+        filter = new FFDNetPretrained();
+        break;
     default:
         std::cerr << "Erreur : Filtre non reconnu." << std::endl;
         return 1;
@@ -133,49 +132,117 @@ int main(int argc, char *argv[])
          [sigmaSaltAndPepper](Image &img) { Noiser::applySaltAndPepperNoise(img, sigmaSaltAndPepper); }},
         {NoiseType::SPECKLE, [sigmaSpeckle](Image &img) { Noiser::applySpeckleNoise(img, sigmaSpeckle); }}};
 
-    for (const auto &[noiseType, applyNoise] : noiseFunctions)
+    if (!noAddNoiseParam.Get())
     {
-        Image noisyImage = original; // Copie de l'image d'origine
-        applyNoise(noisyImage);      // Applique le bruit correspondant
-        // Sauvegarde de l'image bruitée avec le nom du bruit
-        std::string noiseName = utils::noiseTypeToString(noiseType);
-        // noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_noise.png");
-        float noiseSigma = (noiseType == NoiseType::GAUSSIAN)      ? sigmaGaussian
-                           : (noiseType == NoiseType::SALT_PEPPER) ? sigmaSaltAndPepper
-                                                                   : sigmaSpeckle;
-        if ((noiseType != NoiseType::POISSON))
-            noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_" +
-                               std::to_string(noiseSigma) + ".png");
-        if (noisyImage.isLoaded())
+        // Charge l'image originale
+        Image original(filepath);
+        if (!original.isLoaded())
         {
-            Image out = noisyImage;
-            for (int i = 0; i < iterNbr; i++)
-            {
-                out = filter->apply(out); // Applique le filtre
-            }
-            float psnrNoisy = utils::PSNR(noisyImage, original); // PSNR de l'image bruitée
-            float psnrFiltered = utils::PSNR(out, original);     // PSNR de l'image filtrée
-            float psnrDiff = psnrFiltered - psnrNoisy;
-
-            float ssimNoisy = utils::SSIM(noisyImage, original); // SSIM de l'image bruitée
-            float ssimFiltered = utils::SSIM(out, original);     // SSIM de l'image filtrée
-            float ssimDiff = ssimFiltered - ssimNoisy;
-
-            std::cout << "================================\n";
-            std::cout << "Image bruitée par " << noiseName << ":\n";
-            std::cout << "PSNR (bruitée): " << psnrNoisy << " dB\n";
-            std::cout << "PSNR (filtrée): " << psnrFiltered << " dB\n";
-            std::cout << "Différence de PSNR : " << psnrDiff << " dB\n";
-            std::cout << "SSIM (bruitée): " << ssimNoisy << "\n";
-            std::cout << "SSIM (filtrée): " << ssimFiltered << "\n";
-            std::cout << "Différence de SSIM : " << ssimDiff << "\n";
-
-            // if (noiseType == NoiseType::GAUSSIAN)
-            //     std::cout << sigma << " " << psnrDiff << " dB\n";
-
-            out.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_denoisedBy" + filterName +
-                        ".png");
+            std::cerr << "Erreur : Échec du chargement de l'image originale." << std::endl;
+            return 1;
         }
+        std::string originalBaseName = utils::basenameWithoutExt(filepath);
+        for (const auto &[noiseType, applyNoise] : noiseFunctions)
+        {
+            Image noisyImage = original; // Copie de l'image d'origine
+            applyNoise(noisyImage);      // Applique le bruit correspondant
+            // Sauvegarde de l'image bruitée avec le nom du bruit
+            std::string noiseName = utils::noiseTypeToString(noiseType);
+            // noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_noise.png");
+            float noiseSigma = (noiseType == NoiseType::GAUSSIAN)      ? sigmaGaussian
+                               : (noiseType == NoiseType::SALT_PEPPER) ? sigmaSaltAndPepper
+                                                                       : sigmaSpeckle;
+            if ((noiseType != NoiseType::POISSON))
+                noisyImage.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_" +
+                                   std::to_string(noiseSigma) + ".png");
+            if (noisyImage.isLoaded())
+            {
+                Image out = noisyImage;
+                for (int i = 0; i < iterNbr; i++)
+                {
+                    out = filter->apply(out); // Applique le filtre
+                }
+                float psnrNoisy = utils::PSNR(noisyImage, original); // PSNR de l'image bruitée
+                float psnrFiltered = utils::PSNR(out, original);     // PSNR de l'image filtrée
+                // float psnrDiff = psnrFiltered - psnrNoisy;
+                float psnrGain = (psnrFiltered / psnrNoisy) - 1.0f;
+
+                float ssimNoisy = utils::SSIM(noisyImage, original); // SSIM de l'image bruitée
+                float ssimFiltered = utils::SSIM(out, original);     // SSIM de l'image filtrée
+                // float ssimDiff = ssimFiltered - ssimNoisy;
+                float ssimGain = (ssimFiltered / ssimNoisy) - 1.0f;
+
+                std::cout << "================================\n";
+                std::cout << "Image bruitée par " << noiseName << ":\n";
+                std::cout << "PSNR (bruitée): " << psnrNoisy << " dB\n";
+                std::cout << "PSNR (filtrée): " << psnrFiltered << " dB\n";
+                std::cout << "Gain de PSNR : " << psnrGain * 100.0f << " %\n";
+                std::cout << "SSIM (bruitée): " << ssimNoisy << "\n";
+                std::cout << "SSIM (filtrée): " << ssimFiltered << "\n";
+                std::cout << "Gain de SSIM : " << ssimGain * 100.0f << " %\n";
+
+                // if (noiseType == NoiseType::GAUSSIAN)
+                //     std::cout << sigma << " " << psnrDiff << " dB\n";
+
+                out.savePNG("../../Ressources/Out/" + originalBaseName + "_" + noiseName + "_denoisedBy" + filterName +
+                            ".png");
+            }
+        }
+    }
+    else
+    {
+        if (originalPathParam.Get().empty())
+        {
+            std::cerr << "Erreur : Le chemin de l'image originale est obligatoire si le bruit n'est pas ajouté."
+                      << std::endl;
+            return 1;
+        }
+
+        Image noisyImage = Image(filepath);
+        if (!noisyImage.isLoaded())
+        {
+            std::cerr << "Erreur : Échec du chargement de l'image bruitée." << std::endl;
+            return 1;
+        }
+
+        std::string noisyBaseName = utils::basenameWithoutExt(filepath);
+
+        // Charge l'image originale
+        Image original(originalPathParam.Get());
+        if (!original.isLoaded())
+        {
+            std::cerr << "Erreur : Échec du chargement de l'image originale." << std::endl;
+            return 1;
+        }
+
+        Image out = noisyImage;
+        for (int i = 0; i < iterNbr; i++)
+        {
+            out = filter->apply(out); // Applique le filtre
+        }
+
+        float psnrNoisy = utils::PSNR(noisyImage, original); // PSNR de l'image bruitée
+        float psnrFiltered = utils::PSNR(out, original);     // PSNR de l'image filtrée
+        float psnrGain = (psnrFiltered / psnrNoisy) - 1.0f;
+
+        float ssimNoisy = utils::SSIM(noisyImage, original); // SSIM de l'image bruitée
+        float ssimFiltered = utils::SSIM(out, original);     // SSIM de l'image filtrée
+        float ssimGain = (ssimFiltered / ssimNoisy) - 1.0f;
+
+        std::cout << "================================\n";
+        std::cout << "Image bruitée par " << ":\n";
+        std::cout << "PSNR (bruitée): " << psnrNoisy << " dB\n";
+        std::cout << "PSNR (filtrée): " << psnrFiltered << " dB\n";
+        std::cout << "Gain de PSNR : " << psnrGain * 100.0f << " %\n";
+        std::cout << "SSIM (bruitée): " << ssimNoisy << "\n";
+        std::cout << "SSIM (filtrée): " << ssimFiltered << "\n";
+        std::cout << "Gain de SSIM : " << ssimGain * 100.0f << " %\n";
+
+        std::string denoisedFilePath = "../../Ressources/Out/" + noisyBaseName + "_denoisedBy" + filterName + ".png";
+        out.savePNG(denoisedFilePath);
+
+        // std::string nimaScriptCall = "../ffdnet-pytorch/.venv/bin/python3 src/nima.py " + denoisedFilePath;
+        // system(nimaScriptCall.c_str());
     }
 
     delete filter; // Libération de la mémoire du filtre

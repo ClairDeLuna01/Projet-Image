@@ -15,6 +15,7 @@ enum class FilterType
     GAUSSIAN,
     NONLOCAL_MEANS,
     MEDIAN,
+    FFDNET_PRETRAINED,
     INVALID
 };
 
@@ -222,6 +223,8 @@ inline std::string filterTypeToString(FilterType filterType)
         return "nonlocal_means";
     case FilterType::MEDIAN:
         return "median";
+    case FilterType::FFDNET_PRETRAINED:
+        return "ffdnet_pretrained";
     default:
         return "unknown"; // Cas par défaut pour les valeurs non prises en charge
     }

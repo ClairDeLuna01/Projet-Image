@@ -34,3 +34,5 @@
 main
 
 Ressources/Out/*.png
+Code/ffdnet-pytorch/.venv
+Code/ffdnet-pytorch/__pycache__

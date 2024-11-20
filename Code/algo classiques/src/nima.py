@@ -1,3 +1,5 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Masquer les messages d'avertissement
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras.applications import MobileNet
@@ -5,6 +7,7 @@ from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tkinter import Tk, filedialog
+from sys import argv
 
 # Fonction pour ouvrir une boîte de dialogue de sélection de fichier
 def select_image():
@@ -44,10 +47,13 @@ def evaluate_image_quality(model, image_path):
     return nima_score
 
 # Sélectionner l'image et calculer le score NIMA
-image_path = select_image()
+# image_path = select_image()
+
+
+image_path = argv[1] if len(argv) > 1 else select_image()
 if image_path:
     model = load_nima_model()
     score = evaluate_image_quality(model, image_path)
-    print(f"Score NIMA moyen pour l'image sélectionnée : {score}")
+    print(f"NIMA: {score}")
 else:
     print("Aucune image sélectionnée.")

@@ -31,10 +31,11 @@ int main(int argc, char *argv[])
          {"ffdnet_pretrained", FilterType::FFDNET_PRETRAINED}},
         FilterType::INVALID);
     args::Flag noAddNoiseParam(parser, "noAddNoise", "Ne pas ajouter de bruit à l'image", {'n', "noAddNoise"});
+    args::Flag compactPrint(parser, "compactPrint", "Affichage compact terminal", {'c', "compactPrint"});
     args::ValueFlag<std::string> originalPathParam(parser, "originalPath", "Chemin de l'image originale",
                                                    {'o', "originalPath"}, "");
     args::ValueFlag<std::string> outputPathParam(parser, "outputPath", "Chemin de l'image de sortie",
-                                                   {'d', "outputPath"}, "");
+                                                 {'d', "outputPath"}, "");
     args::ValueFlag<float> sigmaParam(parser, "sigma1", "Valeur de sigma pour le filtre", {'s', "sigma1", "sigma"},
                                       1.0f);
     args::ValueFlag<float> sigma2Param(parser, "sigma2", "Valeur de sigma2 pour le filtre bilatéral", {'t', "sigma2"},
@@ -135,6 +136,11 @@ int main(int argc, char *argv[])
 
     if (!noAddNoiseParam.Get())
     {
+        // if (compactPrint.Get())
+        // {
+        //     std::cout << "filterType psnrGain ssimGain\n";
+        // }
+
         // Charge l'image originale
         Image original(filepath);
         if (!original.isLoaded())
@@ -173,15 +179,22 @@ int main(int argc, char *argv[])
                 // float ssimDiff = ssimFiltered - ssimNoisy;
                 float ssimGain = (ssimFiltered / ssimNoisy) - 1.0f;
 
-                std::cout << "================================\n";
-                std::cout << "Image bruitée par " << noiseName << ":\n";
-                std::cout << "PSNR (bruitée): " << psnrNoisy << " dB\n";
-                std::cout << "PSNR (filtrée): " << psnrFiltered << " dB\n";
-                std::cout << "Gain de PSNR : " << psnrGain * 100.0f << " %\n";
-                std::cout << "SSIM (bruitée): " << ssimNoisy << "\n";
-                std::cout << "SSIM (filtrée): " << ssimFiltered << "\n";
-                std::cout << "Gain de SSIM : " << ssimGain * 100.0f << " %\n";
-
+                if (!compactPrint.Get())
+                {
+                    std::cout << "================================\n";
+                    std::cout << "Image bruitée par " << noiseName << ":\n";
+                    std::cout << "PSNR (bruitée): " << psnrNoisy << " dB\n";
+                    std::cout << "PSNR (filtrée): " << psnrFiltered << " dB\n";
+                    std::cout << "Gain de PSNR : " << psnrGain * 100.0f << " %\n";
+                    std::cout << "SSIM (bruitée): " << ssimNoisy << "\n";
+                    std::cout << "SSIM (filtrée): " << ssimFiltered << "\n";
+                    std::cout << "Gain de SSIM : " << ssimGain * 100.0f << " %\n";
+                }
+                else
+                {
+                    std::cout << filterName << " " << psnrNoisy << " " << psnrFiltered << " " << psnrGain * 100.0f
+                              << " " << ssimNoisy << " " << ssimFiltered << " " << ssimGain * 100.0f << "\n";
+                }
                 // if (noiseType == NoiseType::GAUSSIAN)
                 //     std::cout << sigma << " " << psnrDiff << " dB\n";
 
@@ -192,6 +205,11 @@ int main(int argc, char *argv[])
     }
     else
     {
+        // if (compactPrint.Get())
+        // {
+        //     std::cout << "psnrGain ssimGain\n";
+        // }
+
         if (originalPathParam.Get().empty())
         {
             std::cerr << "Erreur : Le chemin de l'image originale est obligatoire si le bruit n'est pas ajouté."
@@ -230,15 +248,25 @@ int main(int argc, char *argv[])
         float ssimFiltered = utils::SSIM(out, original);     // SSIM de l'image filtrée
         float ssimGain = (ssimFiltered / ssimNoisy) - 1.0f;
 
-        std::cout << "================================\n";
-        std::cout << "PSNR (bruitée): " << psnrNoisy << " dB\n";
-        std::cout << "PSNR (filtrée): " << psnrFiltered << " dB\n";
-        std::cout << "Gain de PSNR : " << psnrGain * 100.0f << " %\n";
-        std::cout << "SSIM (bruitée): " << ssimNoisy << "\n";
-        std::cout << "SSIM (filtrée): " << ssimFiltered << "\n";
-        std::cout << "Gain de SSIM : " << ssimGain * 100.0f << " %\n";
+        if (!compactPrint.Get())
+        {
+            std::cout << "================================\n";
+            std::cout << "PSNR (bruitée): " << psnrNoisy << " dB\n";
+            std::cout << "PSNR (filtrée): " << psnrFiltered << " dB\n";
+            std::cout << "Gain de PSNR : " << psnrGain * 100.0f << " %\n";
+            std::cout << "SSIM (bruitée): " << ssimNoisy << "\n";
+            std::cout << "SSIM (filtrée): " << ssimFiltered << "\n";
+            std::cout << "Gain de SSIM : " << ssimGain * 100.0f << " %\n";
+        }
+        else
+        {
+            std::cout << psnrNoisy << " " << psnrFiltered << " " << psnrGain * 100.0f << " " << ssimNoisy << " "
+                      << ssimFiltered << " " << ssimGain * 100.0f << "\n";
+        }
 
-        std::string denoisedFilePath = outputPathParam.Get().empty() ? "../../Ressources/Out/" + noisyBaseName + "_denoisedBy" + filterName + ".png" : outputPathParam.Get();
+        std::string denoisedFilePath = outputPathParam.Get().empty() ? "../../Ressources/Out/" + noisyBaseName +
+                                                                           "_denoisedBy" + filterName + ".png"
+                                                                     : outputPathParam.Get();
         out.savePNG(denoisedFilePath);
 
         // std::string nimaScriptCall = "../ffdnet-pytorch/.venv/bin/python3 src/nima.py " + denoisedFilePath;

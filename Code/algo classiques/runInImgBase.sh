@@ -28,6 +28,8 @@ OUT_BASE_DIR="../../Ressources/Out"
 # Boucle sur chaque scène
 for scene_name in "${SCENE_NAMES[@]}"; do
     # Boucle sur chaque sample
+    outfile="$OUT_BASE_DIR/$scene_name/${scene_name}_denoisedBy${DENOISER_TYPE}.dat"
+    echo -n "" >$outfile
     for sample in "${SAMPLES[@]}"; do
         # Chemins source et destination
         input_file="$IMG_BASE_DIR/$scene_name/scene_spp_$sample/$scene_name.png"
@@ -45,8 +47,8 @@ for scene_name in "${SCENE_NAMES[@]}"; do
         mkdir -p "$(dirname "$original_file")"
 
         # Lancer la commande avec le débruiteur dynamique
-        echo "Lancement de : ./main $input_file $DENOISER_TYPE -n -o $original_file -d $output_file"
-        ./main "$input_file" "$DENOISER_TYPE" -n -o "$original_file" -d "$output_file"
+        # echo "Lancement de : ./main $input_file $DENOISER_TYPE -n -o $original_file -d $output_file -c"
+        echo "$sample $(./main "$input_file" "$DENOISER_TYPE" -n -o "$original_file" -d "$output_file" -c)" >>$outfile
     done
 done
 

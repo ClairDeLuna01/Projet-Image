@@ -9,14 +9,14 @@ Image BilateralFilter::apply(const Image &img)
     Image out(img.getWidth(), img.getHeight(), img.getChannels());
 
     // On parcourt chaque pixel de l'image
-    for (int x = 0; x < img.getHeight(); x++)
+    for (int x = 0; x < img.getWidth(); x++)
     {
-        for (int y = 0; y < img.getWidth(); y++)
+        for (int y = 0; y < img.getHeight(); y++)
         {
             for (int c = 0; c < img.getChannels(); c++)
             {
-                if (x < kernelSize / 2 || x >= img.getHeight() - kernelSize / 2 || y < kernelSize / 2 ||
-                    y >= img.getWidth() - kernelSize / 2)
+                if (x < kernelSize / 2 || x >= img.getWidth() - kernelSize / 2 || y < kernelSize / 2 ||
+                    y >= img.getHeight() - kernelSize / 2)
                 {
                     out.setPixel(x, y, c, img.getClampedPixel(x, y, c));
                 }

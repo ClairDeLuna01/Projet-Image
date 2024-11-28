@@ -36,3 +36,4 @@ main
 Ressources/Out/*.png
 Code/ffdnet-pytorch/.venv
 Code/ffdnet-pytorch/__pycache__
+Code/algo classiques/temp.png

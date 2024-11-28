@@ -37,16 +37,16 @@ int main(int argc, char *argv[])
     args::ValueFlag<std::string> outputPathParam(parser, "outputPath", "Chemin de l'image de sortie",
                                                  {'d', "outputPath"}, "");
     args::ValueFlag<float> sigmaParam(parser, "sigma1", "Valeur de sigma pour le filtre", {'s', "sigma1", "sigma"},
-                                      1.0f);
+                                      -1.0f);
     args::ValueFlag<float> sigma2Param(parser, "sigma2", "Valeur de sigma2 pour le filtre bilatéral", {'t', "sigma2"},
-                                       1.0f);
+                                       -1.0f);
     args::ValueFlag<float> sigmaGaussianParam(parser, "sigmaGaussian", "Valeur de sigmaGaussian", {"sigmaGaussian"},
                                               25.0f);
     args::ValueFlag<float> sigmaSpeckleParam(parser, "sigmaSpeckle", "Valeur de sigmaSpeckle", {"sigmaSpeckle"}, 0.1f);
     args::ValueFlag<float> sigmaSaltAndPepperParam(parser, "sigmaSaltAndPepper", "Valeur de sigmaSaltAndPepper",
                                                    {"sigmaSaltAndPepper"}, 0.05f);
     args::ValueFlag<int> kernelSizeParam(parser, "kernelSize", "Taille du noyau pour le filtre bilatéral",
-                                         {'k', "kernelSize"}, 3);
+                                         {'k', "kernelSize"}, -1);
     args::ValueFlag<int> iterNbrParam(parser, "iterNbr", "Nombre d'itération de filtrage",
                                       {'i', "iterNbr", "iterationNbr"}, 1);
     args::HelpFlag help(parser, "help", "Affiche ce message d'aide", {'h', "help"});
@@ -107,15 +107,22 @@ int main(int argc, char *argv[])
     switch (filterType)
     {
     case FilterType::BILATERAL:
+        sigma = sigma == -1.0f ? 1.2 : sigma;
+        sigma2 = sigma2 == -1.0f ? 120.0 : sigma2;
+        kernelSize = kernelSize == -1.0f ? 7 : kernelSize;
         filter = new BilateralFilter(kernelSize, sigma, sigma2);
         break;
     case FilterType::GAUSSIAN:
+        sigma = sigma == -1.0f ? 1.54 : sigma;
         filter = new GaussianFilter(sigma);
         break;
     case FilterType::NONLOCAL_MEANS:
+        sigma = sigma == -1.0f ? 1.2 : sigma;
+        kernelSize = kernelSize == -1.0f ? 7 : kernelSize;
         filter = new NonlocalMeansFilter(sigma, kernelSize);
         break;
     case FilterType::MEDIAN:
+        kernelSize = kernelSize == -1.0f ? 3 : kernelSize;
         filter = new MedianFilter(kernelSize);
         break;
     case FilterType::FFDNET_PRETRAINED:

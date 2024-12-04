@@ -128,7 +128,7 @@ def main(args):
         print('learning rate %f' % current_lr)
 
         # train
-        for i, (data, orig, noiseSTD, noise) in enumerate(loader_train, 0):
+        for i, (data, orig, noiseSTD) in enumerate(loader_train, 0):
             # Pre-training step
             model.train()
             model.zero_grad()
@@ -150,7 +150,8 @@ def main(args):
             img_train = Variable(img_train.cuda())
             img_train_orig = Variable(img_train_orig.cuda())
             noiseSTD = Variable(noiseSTD.cuda())
-            noise = Variable(noise.cuda())
+            # noise = Variable(noise.cuda())
+            noise = img_train - img_train_orig
             # stdn_var = Variable(torch.cuda.FloatTensor(stdn))
 
             # Evaluate model and optimize it
@@ -166,9 +167,11 @@ def main(args):
 
             # Results
             model.eval()
-            noise_map_predict = torch.clamp(
+            denoisedImage = torch.clamp(
                 img_train-out_train, 0., 1.)
-            psnr_train = batch_psnr(noise_map_predict, noise, 1.)
+            psnr_train = batch_psnr(denoisedImage, img_train_orig, 1.)
+            psnr_orig  = batch_psnr(img_train, img_train_orig, 1.)
+            psnr_improv = ((psnr_train / psnr_orig) - 1) * 100.0
             # PyTorch v0.4.0: loss.data[0] --> loss.item()
 
             if training_params['step'] % args.save_every == 0:
@@ -181,15 +184,18 @@ def main(args):
                     'loss', loss.data, training_params['step'])
                 writer.add_scalar('PSNR on training data', psnr_train,
                                   training_params['step'])
-                print("[epoch %d][%d/%d] loss: %.4f PSNR_train: %.4f" %
-                      (epoch+1, i+1, len(loader_train), loss.data, psnr_train))
+                writer.add_scalar('PSNR improvement on training data', psnr_improv,
+                                  training_params['step'])
+                
+                print("[epoch %d][%d/%d] loss: %.4f PSNR_train: %.4f PSNR_orig: %.4f PSNR_improv: %.2f%%" %
+                      (epoch+1, i+1, len(loader_train), loss.data, psnr_train, psnr_orig, psnr_improv))
             training_params['step'] += 1
         # The end of each epoch
         model.eval()
 
         # Validation
         psnr_val = 0
-        for valimg, valimg_orig, noiseSTD, noise in dataset_val:
+        for valimg, valimg_orig, noiseSTD in dataset_val:
             img_val = torch.unsqueeze(valimg, 0)
             valimg_orig = torch.unsqueeze(valimg_orig, 0)
 
@@ -198,13 +204,17 @@ def main(args):
                 valimg_orig.cuda()), Variable(imgn_val.cuda())
 
             noiseSTD = Variable(noiseSTD.cuda())
-            noise = Variable(noise.cuda())
-
+            # noise = Variable(noise.cuda())
+            noise = valimg - valimg_orig
+            
             out_val = torch.clamp(
                 imgn_val-model(imgn_val, noiseSTD), 0., 1.)
-            psnr_val += batch_psnr(out_val, noise, 1.)
+            psnr_val += batch_psnr(out_val, valimg_orig, 1.)
+            psnr_orig  = batch_psnr(imgn_val, valimg_orig, 1.)
+            psnr_improv = ((psnr_val / psnr_orig) - 1) * 100.0
+
         psnr_val /= len(dataset_val)
-        print("\n[epoch %d] PSNR_val: %.4f" % (epoch+1, psnr_val))
+        print("\n[epoch %d] PSNR_val: %.4f PSNR_improv: %.2f%%" % (epoch+1, psnr_val, psnr_improv))
         writer.add_scalar('PSNR on validation data', psnr_val, epoch)
         writer.add_scalar('Learning rate', current_lr, epoch)
 

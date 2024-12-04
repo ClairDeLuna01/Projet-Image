@@ -37,3 +37,7 @@ Ressources/Out/*.png
 Code/ffdnet-pytorch/.venv
 Code/ffdnet-pytorch/__pycache__
 Code/algo classiques/temp.png
+
+*.h5
+Code/ffdnet-pytorch/logs
+.vscode

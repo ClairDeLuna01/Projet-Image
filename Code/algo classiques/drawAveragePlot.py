@@ -15,7 +15,7 @@ BASE_DIR = "../../Ressources/Out"
 
 # Liste des filtres (types de débruiteurs)
 FILTERS = [
-    "bilateral", "ffdnet_pretrained", "gaussian", "median"
+    "bilateral", "ffdnet_pretrained", "gaussian", "median", "ffdnet"
 ]
 
 # Fonction pour lire un fichier de données

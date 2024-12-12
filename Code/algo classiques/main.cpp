@@ -37,6 +37,8 @@ int main(int argc, char *argv[])
     args::Flag compactPrint(parser, "compactPrint", "Affichage compact terminal", {'c', "compactPrint"});
     args::ValueFlag<std::string> originalPathParam(parser, "originalPath", "Chemin de l'image originale",
                                                    {'o', "originalPath"}, "");
+    args::ValueFlag<std::string> pythonPathParam(parser, "pythonPath", "Chemin de l'interpréteur Python",
+                                                 {'p', "pythonPath"}, "python3.9");
     args::ValueFlag<std::string> outputPathParam(parser, "outputPath", "Chemin de l'image de sortie",
                                                  {'d', "outputPath"}, "");
     args::ValueFlag<float> sigmaParam(parser, "sigma1", "Valeur de sigma pour le filtre", {'s', "sigma1", "sigma"},
@@ -84,6 +86,8 @@ int main(int argc, char *argv[])
         return 1;
     }
     std::string filepath = filepathParam.Get();
+
+    utils::pythonPath = pythonPathParam.Get();
 
     // Vérifie que le filtre est bien spécifié
     if (filterNameParam.Get() == FilterType::INVALID)

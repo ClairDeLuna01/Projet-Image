@@ -26,11 +26,36 @@ IMG_BASE_DIR="../../Ressources/ImgBase"
 OUT_BASE_DIR="../../Ressources/Out"
 
 # Boucle sur chaque scène
+# compter le nombre de scènes
+SCENE_COUNT=0
+for scene_name in "${SCENE_NAMES[@]}"; do
+    for sample in "${SAMPLES[@]}"; do
+        ((SCENE_COUNT++))
+    done
+done
+
+I=0
 for scene_name in "${SCENE_NAMES[@]}"; do
     # Boucle sur chaque sample
     outfile="$OUT_BASE_DIR/$scene_name/${scene_name}_denoisedBy${DENOISER_TYPE}.dat"
     echo -n "" >$outfile
     for sample in "${SAMPLES[@]}"; do
+        # barre de progression
+        echo -ne "\rProgression : ["
+        LENGTH=50
+        PROGRESS=$((LENGTH * I / SCENE_COUNT))
+        for ((j = 0; j < $LENGTH; j++)); do
+            if [[ $j -lt $PROGRESS ]]; then
+                echo -n "="
+            elif [[ $j -eq $(($PROGRESS)) ]]; then
+                echo -n ">"
+            else
+                echo -n " "
+            fi
+        done
+        echo -ne "] $((I * 100 / SCENE_COUNT))% "
+        ((I++))
+
         # Chemins source et destination
         input_file="$IMG_BASE_DIR/$scene_name/scene_spp_$sample/$scene_name.png"
         output_file="$OUT_BASE_DIR/$scene_name/${scene_name}_${sample}_denoisedBy${DENOISER_TYPE}.png"

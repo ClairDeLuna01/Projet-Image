@@ -114,9 +114,9 @@ def test_ffdnet(**args):
     noise_std = estimate_noise_std(imorig_array) * 2
 
     if args['pretrained_model']:
-        noise_std *= 4
+        noise_std = 10 / 255.
 
-    print("Noise std: ", noise_std)
+    # print("Noise std: ", noise_std)
 
     # Test mode
     with torch.no_grad():  # PyTorch v0.4.0

@@ -226,4 +226,6 @@ template <typename T> inline T clamp(T value, T min, T max)
     return std::max(min, std::min(value, max));
 }
 
+inline std::string pythonPath;
+
 } // namespace utils

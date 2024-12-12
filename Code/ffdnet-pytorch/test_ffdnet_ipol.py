@@ -20,7 +20,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from models import FFDNet
 from utils import batch_psnr, normalize, init_logger_ipol, \
-    variable_to_cv2_image, remove_dataparallel_wrapper, is_rgb
+    variable_to_cv2_image, remove_dataparallel_wrapper, is_rgb, estimate_noise_std
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -68,6 +68,7 @@ def test_ffdnet(**args):
                                  imorig[:, :, :, -1][:, :, :, np.newaxis]), axis=3)
 
     imorig = normalize(imorig)
+    imorig_array = np.copy(imorig)[0].transpose(1, 2, 0)
     imorig = torch.Tensor(imorig)
 
     # Absolute path to model file
@@ -101,19 +102,28 @@ def test_ffdnet(**args):
         dtype = torch.FloatTensor
 
     # Add noise
-    if args['add_noise']:
-        noise = torch.FloatTensor(imorig.size()).\
-            normal_(mean=0, std=args['noise_sigma'])
-        imnoisy = imorig + noise
-    else:
-        imnoisy = imorig.clone()
+    # if args['add_noise']:
+    #     noise = torch.FloatTensor(imorig.size()).\
+    #         normal_(mean=0, std=args['noise_sigma'])
+    #     imnoisy = imorig + noise
+    # else:
+    imnoisy = imorig.clone()
 
-        # Test mode
+    # print("imorig_array.shape: ", imorig_array.shape)
+
+    noise_std = estimate_noise_std(imorig_array) * 2
+
+    if args['pretrained_model']:
+        noise_std *= 4
+
+    print("Noise std: ", noise_std)
+
+    # Test mode
     with torch.no_grad():  # PyTorch v0.4.0
         imorig, imnoisy = Variable(imorig.type(dtype)), \
             Variable(imnoisy.type(dtype))
         nsigma = Variable(
-            torch.FloatTensor([args['noise_sigma']]).type(dtype))
+            torch.FloatTensor([noise_std]).type(dtype))
 
     # Measure runtime
     start_t = time.time()
@@ -171,8 +181,10 @@ if __name__ == "__main__":
                         help='path to input image')
     parser.add_argument("--suffix", type=str, default="",
                         help='suffix to add to output name')
-    parser.add_argument("--noise_sigma", type=float, default=25,
-                        help='noise level used on test set')
+    # parser.add_argument("--noise_sigma", type=float, default=10,
+    #                     help='noise level used on test set')
+    parser.add_argument("--pretrained_model", action="store_true",
+                        help='using pretrained model, adjusts the noise level')
     parser.add_argument("--dont_save_results", action='store_true',
                         help="don't save output images")
     parser.add_argument("--no_gpu", action='store_true',
@@ -185,7 +197,7 @@ if __name__ == "__main__":
                         help='path to model file')
     argspar = parser.parse_args()
     # Normalize noises ot [0, 1]
-    argspar.noise_sigma /= 255.
+    # argspar.noise_sigma /= 255.
 
     # String to bool
     argspar.add_noise = (argspar.add_noise.lower() == 'true')

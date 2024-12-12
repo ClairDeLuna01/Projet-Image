@@ -2,11 +2,10 @@
 
 #include "Image.hpp"
 #include <cmath>
-#include <dirent.h>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <sys/stat.h>
 #include <vector>
 
 enum class FilterType
@@ -16,6 +15,7 @@ enum class FilterType
     NONLOCAL_MEANS,
     MEDIAN,
     FFDNET_PRETRAINED,
+    FFDNET,
     INVALID
 };
 
@@ -121,22 +121,9 @@ inline std::vector<std::string> getFilesInDirectory(const std::string &directory
 {
     std::vector<std::string> files;
 
-    DIR *dir;
-    struct dirent *ent;
-    if ((dir = opendir(directory.c_str())) != NULL)
+    for (const auto &entry : std::filesystem::directory_iterator(directory))
     {
-        while ((ent = readdir(dir)) != NULL)
-        {
-            if (ent->d_type == DT_REG)
-            {
-                files.push_back(ent->d_name);
-            }
-        }
-        closedir(dir);
-    }
-    else
-    {
-        std::cerr << "Erreur : Impossible d'ouvrir le dossier " << directory << std::endl;
+        files.push_back(entry.path().string());
     }
 
     return files;
@@ -203,7 +190,11 @@ inline bool fileExists(const std::string &path)
 
 inline bool createFolder(const std::string &path)
 {
-    return mkdir(path.c_str(), 0777) == 0;
+    if (path.empty() || std::filesystem::exists(path))
+    {
+        return true;
+    }
+    return std::filesystem::create_directory(path);
 }
 
 inline float getLuminance(unsigned char r, unsigned char g, unsigned char b)

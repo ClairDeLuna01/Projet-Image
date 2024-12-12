@@ -26,9 +26,11 @@ from torch.utils.data import DataLoader
 import torchvision.utils as utils
 from tensorboardX import SummaryWriter
 from models import FFDNet
-from dataset import Dataset
+from dataset import Dataset, estimate_noise_with_ground_truth_batch
 from utils import weights_init_kaiming, batch_psnr, init_logger, \
     svd_orthogonalization
+from tqdm import tqdm
+# from rich.progress import track
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -41,7 +43,7 @@ def main(args):
     print('> Loading dataset ...')
     dataset_train = Dataset(train=True, gray_mode=args.gray, shuffle=True)
     dataset_val = Dataset(train=False, gray_mode=args.gray, shuffle=False)
-    loader_train = DataLoader(dataset=dataset_train, num_workers=6,
+    loader_train = DataLoader(dataset=dataset_train, num_workers=0,
                               batch_size=args.batch_size, shuffle=True)
     print("\t# of training samples: %d\n" % int(len(dataset_train)))
 
@@ -60,7 +62,7 @@ def main(args):
     # Initialize model with He init
     net.apply(weights_init_kaiming)
     # Define loss
-    criterion = nn.MSELoss(size_average=False)
+    criterion = nn.MSELoss(reduction='mean')
 
     # Move to GPU
     device_ids = [0]
@@ -128,15 +130,14 @@ def main(args):
         print('learning rate %f' % current_lr)
 
         # train
-        for i, (data, orig, noiseSTD) in enumerate(loader_train, 0):
+        for i, (data, orig) in enumerate(loader_train, 0):
             # Pre-training step
             model.train()
             model.zero_grad()
             optimizer.zero_grad()
 
             # inputs: noise and noisy image
-            img_train = data
-            img_train_orig = orig
+
             # noise = torch.zeros(img_train.size())
             # stdn = np.random.uniform(args.noiseIntL[0], args.noiseIntL[1],
             #                          size=noise.size()[0])
@@ -147,55 +148,98 @@ def main(args):
             # imgn_train = img_train + noise
 
             # Create input Variables
-            img_train = Variable(img_train.cuda())
-            img_train_orig = Variable(img_train_orig.cuda())
+            data = Variable(data.cuda())
+            orig = Variable(orig.cuda())
+
+            noise, noiseSTD = estimate_noise_with_ground_truth_batch(
+                data, orig
+            )
+
             noiseSTD = Variable(noiseSTD.cuda())
-            # noise = Variable(noise.cuda())
-            noise = img_train - img_train_orig
+            noise = Variable(noise.cuda())
+            noiseNormalized = (noise + 1.0) / 2.0
+            # noise = img_train - img_train_orig
             # stdn_var = Variable(torch.cuda.FloatTensor(stdn))
 
             # Evaluate model and optimize it
             # print("img_train.size(): {}".format(img_train.size()))
             # print("noise.size(): {}".format(noise.size()))
-            out_train = model(img_train, noiseSTD)
-            loss = criterion(out_train, noise) / (img_train.size()[0]*2)
+            out_train = model(data, noiseSTD)
+            out_train_normalized = (out_train + 1.0) / 2.0
+            loss = criterion(out_train_normalized, noiseNormalized)
+
+            # debug print the max and min of out_train and of noise
+            # print("out_train: max: {}, min: {}".format(
+            #     out_train.max(), out_train.min()))
+            # print("noise: max: {}, min: {}".format(noise.max(), noise.min()))
+            # print("loss: {}".format(loss))
+
+            # quit()
+
             loss.backward()
             optimizer.step()
 
             # print("loss: {}".format(loss))
             # print("loss.data: {}".format(loss.data))
 
-            # Results
-            model.eval()
-            denoisedImage = torch.clamp(
-                img_train-out_train, 0., 1.)
-            psnr_train = batch_psnr(denoisedImage, img_train_orig, 1.)
-            psnr_orig  = batch_psnr(img_train, img_train_orig, 1.)
-            psnr_improv = ((psnr_train / psnr_orig) - 1) * 100.0
             # PyTorch v0.4.0: loss.data[0] --> loss.item()
 
+            # debug save patches to patches/
+            # for i in range(img_train.size()[0]):
+            #     utils.save_image(
+            #         img_train[i], 'patches/{}_noisy.png'.format(i))
+            #     utils.save_image(
+            #         img_train_orig[i], 'patches/{}_orig.png'.format(i))
+            #     utils.save_image(
+            #         denoisedImage[i], 'patches/{}_denoised.png'.format(i))
+            #     utils.save_image(
+            #         (out_train[i] + 1.0) / 2.0, 'patches/{}_out.png'.format(i))
+            #     utils.save_image(
+            #         (noise[i] + 1.0) / 2.0, 'patches/{}_noise_std_{}.png'.format(i, noiseSTD[i]))
+
+            # quit()
+
             if training_params['step'] % args.save_every == 0:
+                loss_val = loss.item()
+
+                # Results
+                model.eval()
+                denoisedImage = torch.clamp(
+                    data-model(data, noiseSTD), 0., 1.)
+                psnr_train, psnr_train_best, psnr_train_worst = batch_psnr(
+                    denoisedImage, orig, 1.)
+                psnr_orig, psnr_orig_best, psnr_orig_worst = batch_psnr(
+                    data, orig, 1.)
+                psnr_improv = ((psnr_train / psnr_orig) - 1) * 100.0
+
                 # Apply regularization by orthogonalizing filters
                 if not training_params['no_orthog']:
                     model.apply(svd_orthogonalization)
 
                 # Log the scalar values
                 writer.add_scalar(
-                    'loss', loss.data, training_params['step'])
+                    'loss', loss_val, training_params['step'])
                 writer.add_scalar('PSNR on training data', psnr_train,
                                   training_params['step'])
                 writer.add_scalar('PSNR improvement on training data', psnr_improv,
                                   training_params['step'])
-                
-                print("[epoch %d][%d/%d] loss: %.4f PSNR_train: %.4f PSNR_orig: %.4f PSNR_improv: %.2f%%" %
-                      (epoch+1, i+1, len(loader_train), loss.data, psnr_train, psnr_orig, psnr_improv))
+                writer.add_scalar('Best PSNR on training data', psnr_train_best if psnr_train_best != np.inf else 100,
+                                  training_params['step'])
+                writer.add_scalar('Worst PSNR on training data', psnr_train_worst,
+                                  training_params['step'])
+
+                print("[epoch %d][%d/%d] loss: %.4f PSNR_train: %.4f PSNR_orig: %.4f PSNR_improv: % 5.2f%% train_best: %.4f train_worst: %.4f orig_best: %.4f orig_worst: %.4f"
+                      %
+                      (epoch+1, i+1, len(loader_train), loss.data, psnr_train, psnr_orig, psnr_improv, psnr_train_best, psnr_train_worst, psnr_orig_best, psnr_orig_worst))
             training_params['step'] += 1
+
         # The end of each epoch
         model.eval()
 
         # Validation
         psnr_val = 0
-        for valimg, valimg_orig, noiseSTD in dataset_val:
+        psnr_orig = 0
+        for valimg, valimg_orig in dataset_val:
             img_val = torch.unsqueeze(valimg, 0)
             valimg_orig = torch.unsqueeze(valimg_orig, 0)
 
@@ -203,18 +247,24 @@ def main(args):
             valimg_orig, imgn_val = Variable(
                 valimg_orig.cuda()), Variable(imgn_val.cuda())
 
+            noise, noiseSTD = estimate_noise_with_ground_truth_batch(
+                imgn_val, valimg_orig
+            )
+
             noiseSTD = Variable(noiseSTD.cuda())
-            # noise = Variable(noise.cuda())
-            noise = valimg - valimg_orig
-            
+            noise = Variable(noise.cuda())
+            # noise = valimg - valimg_orig
+
             out_val = torch.clamp(
                 imgn_val-model(imgn_val, noiseSTD), 0., 1.)
-            psnr_val += batch_psnr(out_val, valimg_orig, 1.)
-            psnr_orig  = batch_psnr(imgn_val, valimg_orig, 1.)
-            psnr_improv = ((psnr_val / psnr_orig) - 1) * 100.0
+            psnr_val += batch_psnr(out_val, valimg_orig, 1.)[0]
+            psnr_orig += batch_psnr(imgn_val, valimg_orig, 1.)[0]
 
         psnr_val /= len(dataset_val)
-        print("\n[epoch %d] PSNR_val: %.4f PSNR_improv: %.2f%%" % (epoch+1, psnr_val, psnr_improv))
+        psnr_orig /= len(dataset_val)
+        psnr_improv = ((psnr_val / psnr_orig) - 1) * 100.0
+        print("\n[epoch %d] PSNR_val: %.4f PSNR_improv: %.2f%%" %
+              (epoch+1, psnr_val, psnr_improv))
         writer.add_scalar('PSNR on validation data', psnr_val, epoch)
         writer.add_scalar('Learning rate', current_lr, epoch)
 
@@ -225,7 +275,7 @@ def main(args):
                 writer.add_graph(model, (imgn_val,), )
                 # Log validation images
                 for idx in range(2):
-                    imclean = utils.make_grid(img_val.data[idx].clamp(0., 1.),
+                    imclean = utils.make_grid(valimg_orig.data[idx].clamp(0., 1.),
                                               nrow=2, normalize=False, scale_each=False)
                     imnsy = utils.make_grid(imgn_val.data[idx].clamp(0., 1.),
                                             nrow=2, normalize=False, scale_each=False)
@@ -239,7 +289,7 @@ def main(args):
                 writer.add_image('Reconstructed validation image {}'.format(idx),
                                  imrecons, epoch)
             # Log training images
-            imclean = utils.make_grid(img_train.data, nrow=8, normalize=True,
+            imclean = utils.make_grid(data.data, nrow=8, normalize=True,
                                       scale_each=True)
             writer.add_image('Training patches', imclean, epoch)
 
@@ -288,15 +338,8 @@ if __name__ == "__main__":
 						orthogonalization")
     parser.add_argument("--save_every_epochs", type=int, default=5,
                         help="Number of training epochs to save state")
-    parser.add_argument("--noiseIntL", nargs=2, type=int, default=[0, 75],
-                        help="Noise training interval")
-    parser.add_argument("--val_noiseL", type=float, default=25,
-                        help='noise level used on validation set')
+
     argspar = parser.parse_args()
-    # Normalize noise between [0, 1]
-    argspar.val_noiseL /= 255.
-    argspar.noiseIntL[0] /= 255.
-    argspar.noiseIntL[1] /= 255.
 
     print("\n### Training FFDNet model ###")
     print("> Parameters:")

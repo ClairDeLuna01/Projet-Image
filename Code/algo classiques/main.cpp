@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "BilateralFilter.hpp"
+#include "FFDNet.hpp"
 #include "FFDNetPretrained.hpp"
 #include "Filter.hpp"
 #include "GaussianFilter.hpp"
@@ -23,12 +24,14 @@ int main(int argc, char *argv[])
     // Ajout des arguments
     args::Positional<std::string> filepathParam(parser, "filepath", "Chemin de l'image à traiter");
     args::MapPositional<std::string, FilterType> filterNameParam(
-        parser, "filter", "Nom du filtre à appliquer (bilateral, gaussian, nonlocal_means)",
+        parser, "filter",
+        "Nom du filtre à appliquer (bilateral, gaussian, nonlocal_means, median, ffdnet_pretrained, ffdnet)",
         {{"bilateral", FilterType::BILATERAL},
          {"gaussian", FilterType::GAUSSIAN},
          {"nonlocal_means", FilterType::NONLOCAL_MEANS},
          {"median", FilterType::MEDIAN},
-         {"ffdnet_pretrained", FilterType::FFDNET_PRETRAINED}},
+         {"ffdnet_pretrained", FilterType::FFDNET_PRETRAINED},
+         {"ffdnet", FilterType::FFDNET}},
         FilterType::INVALID);
     args::Flag noAddNoiseParam(parser, "noAddNoise", "Ne pas ajouter de bruit à l'image", {'n', "noAddNoise"});
     args::Flag compactPrint(parser, "compactPrint", "Affichage compact terminal", {'c', "compactPrint"});
@@ -127,6 +130,9 @@ int main(int argc, char *argv[])
         break;
     case FilterType::FFDNET_PRETRAINED:
         filter = new FFDNetPretrained();
+        break;
+    case FilterType::FFDNET:
+        filter = new FFDNet();
         break;
     default:
         std::cerr << "Erreur : Filtre non reconnu." << std::endl;

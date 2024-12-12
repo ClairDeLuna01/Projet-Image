@@ -19,6 +19,7 @@ import cv2
 import torch
 import torch.nn as nn
 from skimage.metrics import peak_signal_noise_ratio
+from skimage.util import view_as_windows
 
 
 def weights_init_kaiming(lyr):
@@ -54,10 +55,24 @@ def batch_psnr(img, imclean, data_range):
     img_cpu = img.data.cpu().numpy().astype(np.float32)
     imgclean = imclean.data.cpu().numpy().astype(np.float32)
     psnr = 0
+    psnr_best = 0
+    psnr_worst = 100
     for i in range(img_cpu.shape[0]):
-        psnr += peak_signal_noise_ratio(imgclean[i, :, :, :], img_cpu[i, :, :, :],
-                                        data_range=data_range)
-    return psnr/img_cpu.shape[0]
+        tmp_psnr = peak_signal_noise_ratio(imgclean[i, :, :, :], img_cpu[i, :, :, :],
+                                           data_range=data_range)
+        psnr += tmp_psnr if tmp_psnr != np.inf else 100
+
+        psnr_best = max(psnr_best, tmp_psnr)
+        psnr_worst = min(psnr_worst, tmp_psnr)
+
+        # if tmp_psnr == np.inf:
+        #     # debug: save the image and the clean image
+        #     print('PSNR is inf for image {}'.format(i))
+        #     cv2.imwrite('patches/img_{}.png'.format(
+        #         i), img_cpu[i, :, :, :].transpose(1, 2, 0) * 255)
+        #     cv2.imwrite('patches/clean_{}.png'.format(
+        #         i), imgclean[i, :, :, :].transpose(1, 2, 0) * 255)
+    return psnr/img_cpu.shape[0], psnr_best, psnr_worst
 
 
 def data_augmentation(image, mode):
@@ -271,3 +286,33 @@ def is_rgb(im_path, verbose=True):
         print("rgb: {}".format(rgb))
         print("im shape: {}".format(im.shape))
     return rgb
+
+
+def estimate_noise_std(image, patch_size=8):
+    """
+    Estimate the noise standard deviation in an image by analyzing local patches.
+
+    Args:
+        image: 2D or 3D array (grayscale or color image).
+        patch_size: Size of square patches to consider as smooth regions.
+
+    Returns:
+        Estimated noise standard deviation.
+    """
+    # Convert image to grayscale if it's color
+    if image.ndim == 3:
+        image = np.mean(image, axis=-1)  # simple average over color channels
+
+    # Extract patches from the image
+    patches = view_as_windows(image, (patch_size, patch_size))
+    patches = patches.reshape(-1, patch_size, patch_size)
+
+    # Compute standard deviation of each patch
+    patch_stds = np.std(patches, axis=(1, 2))
+
+    # Select low-variance patches (likely smooth regions)
+    smooth_patches = patch_stds < np.percentile(patch_stds, 25)
+
+    # Use these patches to estimate noise
+    noise_std_dev = np.mean(patch_stds[smooth_patches])
+    return noise_std_dev

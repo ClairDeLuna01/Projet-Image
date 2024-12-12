@@ -111,7 +111,7 @@ def test_ffdnet(**args):
 
     # print("imorig_array.shape: ", imorig_array.shape)
 
-    noise_std = estimate_noise_std(imorig_array) * 2
+    noise_std = estimate_noise_std(imorig_array, 44)
 
     if args['pretrained_model']:
         noise_std = 10 / 255.

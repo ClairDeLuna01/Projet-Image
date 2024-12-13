@@ -19,7 +19,7 @@
 int main(int argc, char *argv[])
 {
     // Définition des arguments
-    args::ArgumentParser parser("Filtre d'image avec méthodes classiques");
+    args::ArgumentParser parser("Filtre d'image avec méthodes classiques et par apprentissage profond");
 
     // Ajout des arguments
     args::Positional<std::string> filepathParam(parser, "filepath", "Chemin de l'image à traiter");
